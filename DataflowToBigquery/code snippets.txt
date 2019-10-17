@@ -1,0 +1,98 @@
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+
+options = PipelineOptions()
+google_cloud_options = options.view_as(GoogleCloudOptions)
+google_cloud_options.project = 'my-project-id'
+google_cloud_options.job_name = 'myjob'
+google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
+google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
+options.view_as(StandardOptions).runner = 'DataflowRunner'
+
+p = beam.Pipeline(options=options)
+
+#to read a text file
+p | beam.io.ReadFromText(
+'gs://dataflow-samples/shakespeare/kinglear.txt')
+
+"""# to read csv
+class User {
+    public String name;
+    public int age;
+    public String phone;
+}
+
+PCollection<String> lines = p.apply(TextIO.Read.from("gs://abc/def.csv"));
+PCollection<User> users = lines.apply(MapElements.via((String line) -> {
+    User user = new User();
+    String[] parts = line.split(",");
+    user.name = parts[0];
+    user.age = Integer.parseInt(parts[1]);
+    user.phone = parts[2];
+    return user;
+}).withOutputType(new TypeDescriptor<User>() {});)
+"""
+
+
+"""# some transformations 
+lines = p | ReadFromText(file_pattern="gs://<my-bucket>/input_file.csv")
+
+    def parse_method(line):
+        import csv
+        reader = csv.reader(line.split('\n'))
+        for csv_row in reader:
+            values = [x.decode('utf8') for x in csv_row]
+            row = []
+            for value in csv_row:
+                if value == 'NaN':
+                    value = 'Null'
+                row.append(value)
+
+        return ",".join(row)
+
+
+
+    lines = lines | 'Split' >> beam.Map(parse_method)
+    line = lines | 'Output to file' >> WriteToText(file_pattern="gs://<my-bucket>/output_file.csv")
+"""
+
+"""
+# dummy code
+import apache_beam as beam
+import sys
+
+PROJECT='PROJECT_ID'
+BUCKET='BUCKET_NAME'
+schema = 'id:INTEGER,region:STRING'
+
+class Split(beam.DoFn):
+
+    def process(self, element):
+        id, region = element.split(",")
+
+        return [{
+            'id': int(id),
+            'region': region,
+        }]
+
+def run():
+   argv = [
+      '--project={0}'.format(PROJECT),
+      '--staging_location=gs://{0}/staging/'.format(BUCKET),
+      '--temp_location=gs://{0}/staging/'.format(BUCKET),
+      '--runner=DataflowRunner'
+   ]
+
+   p = beam.Pipeline(argv=argv)
+
+   (p
+      | 'ReadFromGCS' >> beam.io.textio.ReadFromText('gs://{0}/staging/dummy.csv'.format(BUCKET))
+      | 'ParseCSV' >> beam.ParDo(Split())
+      | 'WriteToBigQuery' >> beam.io.WriteToBigQuery('{0}:test.dummy'.format(PROJECT), schema=schema)
+   )
+
+   p.run()
+
+if __name__ == '__main__':
+   run()
+"""
